@@ -1,5 +1,6 @@
 import csv
 import sys
+from collections import deque
 
 number = 0
 class State:
@@ -38,13 +39,17 @@ class NFA:
 
     @staticmethod
     def kleene_star(nfa):
-        start = State()
-        accept = State()
-        start.epsilon_transitions.add(nfa.start)
-        start.epsilon_transitions.add(accept)
-        nfa.accept.epsilon_transitions.add(accept)
+        # start = State()
+        # accept = State()
+        # start.epsilon_transitions.add(nfa.start)
+        # start.epsilon_transitions.add(accept)
+        # nfa.accept.epsilon_transitions.add(accept)
+        # nfa.accept.epsilon_transitions.add(nfa.start)
+
+        nfa.start.epsilon_transitions.add(nfa.accept)
         nfa.accept.epsilon_transitions.add(nfa.start)
-        return NFA(start, accept)
+
+        return NFA(nfa.start, nfa.accept)
 
     @staticmethod
     def plus(nfa):
@@ -114,25 +119,31 @@ def parse_regex_to_nfa(regex):
     return stack.pop()
 
 
-def traverse_states_with_transitions(state, visited, states_transitions):
-    if state in visited:
-        return
+def traverse_states_with_transitions(state, states_transitions):
+    visited = set()
+    queue = deque([state])
     visited.add(state)
 
-    for symbol, next_states in state.transitions.items():
-        for next_state in next_states:
-            states_transitions.append((state.name, symbol, next_state.name))
-            traverse_states_with_transitions(next_state, visited, states_transitions)
+    while queue:
+        current_state = queue.popleft()
 
-    for epsilon_state in state.epsilon_transitions:
-        states_transitions.append((state.name, 'ε', epsilon_state.name))
-        traverse_states_with_transitions(epsilon_state, visited, states_transitions)
+        for symbol, next_states in current_state.transitions.items():
+            for next_state in next_states:
+                states_transitions.append((current_state.name, symbol, next_state.name))
+                if next_state not in visited:
+                    queue.append(next_state)
+                    visited.add(next_state)
+
+        for epsilon_state in current_state.epsilon_transitions:
+            states_transitions.append((current_state.name, 'ε', epsilon_state.name))
+            if epsilon_state not in visited:
+                queue.append(epsilon_state)
+                visited.add(epsilon_state)
 
 
 def export_nfa_to_file(nfa, output_filename):
     states_transitions = []
-    visited = set()
-    traverse_states_with_transitions(nfa.start, visited, states_transitions)
+    traverse_states_with_transitions(nfa.start, states_transitions)
 
     all_states = {nfa.start.name} | {t[0] for t in states_transitions} | {t[2] for t in states_transitions}
     input_symbols = {t[1] for t in states_transitions if t[1] != 'ε'}
@@ -162,8 +173,9 @@ if __name__ == "__main__":
     #     print("Использование: ./regexToNFA output.csv \"regex\"")
     #     sys.exit(1)
 
-    output_file = "test.csv"
-    regex = "(tw|y)*(tq|t)"
+    output_file = sys.argv[1]
+    regex = sys.argv[2]
+    # regex = "((((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(rw*e|(r|r)))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|r))((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|w))*((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(q(q(rw*e|(i|w))|ew*e)|(u(rw*e|(i|w))|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(tw*e|t)))|(((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(rw*e|(r|r)))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(q(q(rw*e|(i|w))|ew*e)|(u(rw*e|(i|w))|ir)))|((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(rw*e|(i|w)))))(((((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|((q(rw*e|(r|r))|(ew*e|q))|tw*e))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|((qr|q)|(r|e))))((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|w))*((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(q(q(rw*e|(i|w))|ew*e)|(u(rw*e|(i|w))|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(tw*e|t)))|((((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|((q(rw*e|(r|r))|(ew*e|q))|tw*e))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(q(q(rw*e|(i|w))|ew*e)|(u(rw*e|(i|w))|ir)))|(((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|((q(rw*e|(i|w))|ew*e)|(tw*e|r)))))*(((((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|((q(rw*e|(r|r))|(ew*e|q))|tw*e))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|((qr|q)|(r|e))))((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|w))*((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*iw|t)|((((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|((q(rw*e|(r|r))|(ew*e|q))|tw*e))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*iw|(w|y)))|((((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(rw*e|(r|r)))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|r))((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|w))*((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*iw|t)|((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(rw*e|(r|r)))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*iw)"
 
     nfa = parse_regex_to_nfa(regex)
     export_nfa_to_file(nfa, output_file)
