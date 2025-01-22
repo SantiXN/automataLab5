@@ -48,12 +48,14 @@ class NFA:
 
     @staticmethod
     def kleene_star(nfa):
-        """Клини-звезда для НКА."""
         start = State()
         accept = State()
-        start.epsilon_transitions.update({nfa.start, accept})
-        nfa.accept.epsilon_transitions.update({nfa.start, accept})
+        start.epsilon_transitions.add(nfa.start)  # ε-переход из нового начального в старое начальное
+        start.epsilon_transitions.add(accept)  # ε-переход из нового начального в новое конечное
+        nfa.accept.epsilon_transitions.add(accept)  # ε-переход из старого конечного в новое конечное
+        nfa.accept.epsilon_transitions.add(nfa.start)  # ε-петля на старом конечном к старому начальному
         return NFA(start, accept)
+
 
     @staticmethod
     def plus(nfa):
@@ -150,18 +152,24 @@ def export_nfa_to_file(nfa, output_filename):
     traverse_states_with_transitions(nfa.start, visited, states_transitions)
 
     all_states = {nfa.start.name} | {t[0] for t in states_transitions} | {t[2] for t in states_transitions}
-    input_symbols = {t[1] for t in states_transitions}
+    input_symbols = {t[1] for t in states_transitions if t[1] != 'ε'}
+
+    # Сортируем состояния так, чтобы начальное было первым
+    sorted_states = sorted(all_states)
+    if nfa.start.name in sorted_states:
+        sorted_states.remove(nfa.start.name)
+        sorted_states.insert(0, nfa.start.name)
 
     with open(output_filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file, delimiter=';')
-        header1 = [''] + ["F" if state == nfa.accept.name else "" for state in sorted(all_states)]
+        header1 = [''] + ["F" if state == nfa.accept.name else "" for state in sorted_states]
         writer.writerow(header1)
-        header2 = [''] + sorted(all_states)
+        header2 = [''] + sorted_states
         writer.writerow(header2)
 
-        for symbol in sorted(input_symbols):
+        for symbol in sorted(input_symbols | {'ε'}):
             row = [symbol]
-            for state in sorted(all_states):
+            for state in sorted_states:
                 next_states = [t[2] for t in states_transitions if t[0] == state and t[1] == symbol]
                 row.append(','.join(next_states) if next_states else '')
             writer.writerow(row)
