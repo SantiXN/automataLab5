@@ -1,5 +1,6 @@
 import csv
 import sys
+import time
 from collections import deque
 
 number = 0
@@ -11,22 +12,35 @@ class State:
         self.transitions = {}
         self.epsilon_transitions = set()
 
+
 class NFA:
     def __init__(self, start, accept):
         self.start = start
         self.accept = accept
+        self.states_transitions = []
 
     @staticmethod
     def from_symbol(symbol):
         start = State()
         accept = State()
         start.transitions[symbol] = {accept}
-        return NFA(start, accept)
+        nfa = NFA(start, accept)
+        nfa.states_transitions.append((start.name, symbol, accept.name))
+        return nfa
 
     @staticmethod
     def concatenate(nfa1, nfa2):
         nfa1.accept.epsilon_transitions.add(nfa2.start)
-        return NFA(nfa1.start, nfa2.accept)
+
+        # Создаем новый список переходов
+        new_transitions = nfa1.states_transitions[:]
+        new_transitions.append((nfa1.accept.name, 'ε', nfa2.start.name))
+        new_transitions.extend(nfa2.states_transitions)
+
+        # Возвращаем новый NFA
+        new_nfa = NFA(nfa1.start, nfa2.accept)
+        new_nfa.states_transitions = new_transitions
+        return new_nfa
 
     @staticmethod
     def union(nfa1, nfa2):
@@ -35,26 +49,61 @@ class NFA:
         start.epsilon_transitions.update({nfa1.start, nfa2.start})
         nfa1.accept.epsilon_transitions.add(accept)
         nfa2.accept.epsilon_transitions.add(accept)
-        return NFA(start, accept)
+
+        nfa = NFA(start, accept)
+        nfa.states_transitions.extend(nfa1.states_transitions)
+        nfa.states_transitions.extend(nfa2.states_transitions)
+        nfa.states_transitions.append((start.name, 'ε', nfa1.start.name))
+        nfa.states_transitions.append((start.name, 'ε', nfa2.start.name))
+        nfa.states_transitions.append((nfa1.accept.name, 'ε', accept.name))
+        nfa.states_transitions.append((nfa2.accept.name, 'ε', accept.name))
+        return nfa
 
     @staticmethod
     def kleene_star(nfa):
-        # start = State()
-        # accept = State()
-        # start.epsilon_transitions.add(nfa.start)
-        # start.epsilon_transitions.add(accept)
-        # nfa.accept.epsilon_transitions.add(accept)
-        # nfa.accept.epsilon_transitions.add(nfa.start)
+        start = State()
+        accept = State()
+        start.epsilon_transitions.update({nfa.start, accept})
+        nfa.accept.epsilon_transitions.update({nfa.start, accept})
 
-        nfa.start.epsilon_transitions.add(nfa.accept)
-        nfa.accept.epsilon_transitions.add(nfa.start)
+        new_transitions = nfa.states_transitions[:]
+        new_transitions.append((start.name, 'ε', nfa.start.name))
+        new_transitions.append((start.name, 'ε', accept.name))
+        new_transitions.append((nfa.accept.name, 'ε', nfa.start.name))
+        new_transitions.append((nfa.accept.name, 'ε', accept.name))
 
-        return NFA(nfa.start, nfa.accept)
+        # Возвращаем NFA с объединенными переходами
+        new_nfa = NFA(start, accept)
+        new_nfa.states_transitions = new_transitions
+        return new_nfa
 
     @staticmethod
     def plus(nfa):
         return NFA.concatenate(nfa, NFA.kleene_star(nfa))
 
+def export_nfa_to_file(nfa, output_filename):
+    all_states = {nfa.start.name} | {t[0] for t in nfa.states_transitions} | {t[2] for t in nfa.states_transitions}
+    input_symbols = {t[1] for t in nfa.states_transitions if t[1] != 'ε'}
+
+    print(all_states)
+    sorted_states = sorted(all_states)
+    if nfa.start.name in sorted_states:
+        sorted_states.remove(nfa.start.name)
+        sorted_states.insert(0, nfa.start.name)
+
+    with open(output_filename, mode='w', newline='', encoding='utf-8') as file:
+        writer = csv.writer(file, delimiter=';')
+        header1 = [''] + ["F" if state == nfa.accept.name else "" for state in sorted_states]
+        writer.writerow(header1)
+        header2 = [''] + sorted_states
+        writer.writerow(header2)
+
+        for symbol in sorted(input_symbols | {'ε'}):
+            row = [symbol]
+            for state in sorted_states:
+                next_states = [t[2] for t in nfa.states_transitions if t[0] == state and t[1] == symbol]
+                row.append(','.join(next_states) if next_states else '')
+            writer.writerow(row)
 
 def parse_regex_to_nfa(regex):
     stack = []
@@ -141,7 +190,7 @@ def traverse_states_with_transitions(state, states_transitions):
                 visited.add(epsilon_state)
 
 
-def export_nfa_to_file(nfa, output_filename):
+def export_nfa_to_file2(nfa, output_filename):
     states_transitions = []
     traverse_states_with_transitions(nfa.start, states_transitions)
 
