@@ -1,5 +1,6 @@
 import csv
 import sys
+from collections import deque
 
 number = 0
 class State:
@@ -130,26 +131,32 @@ def parse_regex_to_nfa(regex):
     return stack.pop()
 
 
-def traverse_states_with_transitions(state, visited, states_transitions):
-    if state in visited:
-        return
+def traverse_states_with_transitions(state, states_transitions):
+    visited = set()
+    queue = deque([state])
     visited.add(state)
 
-    for symbol, next_states in state.transitions.items():
-        for next_state in next_states:
-            states_transitions.append((state.name, symbol, next_state.name))
-            traverse_states_with_transitions(next_state, visited, states_transitions)
+    while queue:
+        current_state = queue.popleft()
 
-    for epsilon_state in state.epsilon_transitions:
-        states_transitions.append((state.name, 'ε', epsilon_state.name))
-        traverse_states_with_transitions(epsilon_state, visited, states_transitions)
+        for symbol, next_states in current_state.transitions.items():
+            for next_state in next_states:
+                states_transitions.append((current_state.name, symbol, next_state.name))
+                if next_state not in visited:
+                    queue.append(next_state)
+                    visited.add(next_state)
+
+        for epsilon_state in current_state.epsilon_transitions:
+            states_transitions.append((current_state.name, 'ε', epsilon_state.name))
+            if epsilon_state not in visited:
+                queue.append(epsilon_state)
+                visited.add(epsilon_state)
 
 
 def export_nfa_to_file(nfa, output_filename):
     """Экспортирует НКА в файл в формате CSV в требуемом формате."""
     states_transitions = []
-    visited = set()
-    traverse_states_with_transitions(nfa.start, visited, states_transitions)
+    traverse_states_with_transitions(nfa.start, states_transitions)
 
     all_states = {nfa.start.name} | {t[0] for t in states_transitions} | {t[2] for t in states_transitions}
     input_symbols = {t[1] for t in states_transitions if t[1] != 'ε'}
