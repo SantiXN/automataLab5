@@ -1,31 +1,22 @@
 import csv
 import sys
-from collections import deque
 
 number = 0
 class State:
-    """
-    Представляет состояние автомата.
-    """
     def __init__(self):
         global number
         self.name = f"q{number}"
         number += 1
-        self.transitions = {}  # Переходы {символ: множество состояний}
-        self.epsilon_transitions = set()  # Епсилон-переходы
-
+        self.transitions = {}
+        self.epsilon_transitions = set()
 
 class NFA:
-    """
-    Представляет недетерминированный конечный автомат (НКА).
-    """
     def __init__(self, start, accept):
-        self.start = start  # Начальное состояние
-        self.accept = accept  # Конечное состояние
+        self.start = start
+        self.accept = accept
 
     @staticmethod
     def from_symbol(symbol):
-        """Создает НКА для одиночного символа."""
         start = State()
         accept = State()
         start.transitions[symbol] = {accept}
@@ -33,13 +24,11 @@ class NFA:
 
     @staticmethod
     def concatenate(nfa1, nfa2):
-        """Конкатенация двух НКА."""
         nfa1.accept.epsilon_transitions.add(nfa2.start)
         return NFA(nfa1.start, nfa2.accept)
 
     @staticmethod
     def union(nfa1, nfa2):
-        """Объединение двух НКА."""
         start = State()
         accept = State()
         start.epsilon_transitions.update({nfa1.start, nfa2.start})
@@ -51,24 +40,18 @@ class NFA:
     def kleene_star(nfa):
         start = State()
         accept = State()
-        start.epsilon_transitions.add(nfa.start)  # ε-переход из нового начального в старое начальное
-        start.epsilon_transitions.add(accept)  # ε-переход из нового начального в новое конечное
-        nfa.accept.epsilon_transitions.add(accept)  # ε-переход из старого конечного в новое конечное
-        nfa.accept.epsilon_transitions.add(nfa.start)  # ε-петля на старом конечном к старому начальному
+        start.epsilon_transitions.add(nfa.start)
+        start.epsilon_transitions.add(accept)
+        nfa.accept.epsilon_transitions.add(accept)
+        nfa.accept.epsilon_transitions.add(nfa.start)
         return NFA(start, accept)
-
 
     @staticmethod
     def plus(nfa):
-        """Операция "+" (один или более раз)."""
         return NFA.concatenate(nfa, NFA.kleene_star(nfa))
 
 
 def parse_regex_to_nfa(regex):
-    """
-    Разбирает регулярное выражение в НКА, используя алгоритм Томпсона.
-    Поддерживает +, *, |, () и неявную конкатенацию.
-    """
     stack = []
     operators = []
 
@@ -131,37 +114,29 @@ def parse_regex_to_nfa(regex):
     return stack.pop()
 
 
-def traverse_states_with_transitions(state, states_transitions):
-    visited = set()
-    queue = deque([state])
+def traverse_states_with_transitions(state, visited, states_transitions):
+    if state in visited:
+        return
     visited.add(state)
 
-    while queue:
-        current_state = queue.popleft()
+    for symbol, next_states in state.transitions.items():
+        for next_state in next_states:
+            states_transitions.append((state.name, symbol, next_state.name))
+            traverse_states_with_transitions(next_state, visited, states_transitions)
 
-        for symbol, next_states in current_state.transitions.items():
-            for next_state in next_states:
-                states_transitions.append((current_state.name, symbol, next_state.name))
-                if next_state not in visited:
-                    queue.append(next_state)
-                    visited.add(next_state)
-
-        for epsilon_state in current_state.epsilon_transitions:
-            states_transitions.append((current_state.name, 'ε', epsilon_state.name))
-            if epsilon_state not in visited:
-                queue.append(epsilon_state)
-                visited.add(epsilon_state)
+    for epsilon_state in state.epsilon_transitions:
+        states_transitions.append((state.name, 'ε', epsilon_state.name))
+        traverse_states_with_transitions(epsilon_state, visited, states_transitions)
 
 
 def export_nfa_to_file(nfa, output_filename):
-    """Экспортирует НКА в файл в формате CSV в требуемом формате."""
     states_transitions = []
-    traverse_states_with_transitions(nfa.start, states_transitions)
+    visited = set()
+    traverse_states_with_transitions(nfa.start, visited, states_transitions)
 
     all_states = {nfa.start.name} | {t[0] for t in states_transitions} | {t[2] for t in states_transitions}
     input_symbols = {t[1] for t in states_transitions if t[1] != 'ε'}
 
-    # Сортируем состояния так, чтобы начальное было первым
     sorted_states = sorted(all_states)
     if nfa.start.name in sorted_states:
         sorted_states.remove(nfa.start.name)
@@ -192,4 +167,3 @@ if __name__ == "__main__":
 
     nfa = parse_regex_to_nfa(regex)
     export_nfa_to_file(nfa, output_file)
-    print(f"НКА для регулярного выражения '{regex}' экспортирован в '{output_file}'")
