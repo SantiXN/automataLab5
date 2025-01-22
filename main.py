@@ -1,325 +1,180 @@
 import csv
 import sys
-import re
+
+number = 0
+class State:
+    """
+    Представляет состояние автомата.
+    """
+    def __init__(self):
+        global number
+        self.name = f"q{number}"
+        number += 1
+        self.transitions = {}  # Переходы {символ: множество состояний}
+        self.epsilon_transitions = set()  # Епсилон-переходы
 
 
-def minimize_moore(moore_filename, output_filename):
-    transitions, outputs, states, input_symbols = read_moore(moore_filename)
-    transitions, states = remove_unreachable_states_moore(transitions, states, input_symbols)
+class NFA:
+    """
+    Представляет недетерминированный конечный автомат (НКА).
+    """
+    def __init__(self, start, accept):
+        self.start = start  # Начальное состояние
+        self.accept = accept  # Конечное состояние
 
-    groups = {}
-    for state, output in outputs.items():
-        if output not in groups:
-            groups[output] = []
-        groups[output].append(state)
-    groups_map = {}
-    for number, group in enumerate(groups.values(), start=1):
-        for member in group:
-            groups_map[member] = f'a{number}'
+    @staticmethod
+    def from_symbol(symbol):
+        """Создает НКА для одиночного символа."""
+        start = State()
+        accept = State()
+        start.transitions[symbol] = {accept}
+        return NFA(start, accept)
 
-    is_changed = True
-    while is_changed:
-        is_changed = False
-        state_to_transitions = {}
+    @staticmethod
+    def concatenate(nfa1, nfa2):
+        """Конкатенация двух НКА."""
+        nfa1.accept.epsilon_transitions.add(nfa2.start)
+        return NFA(nfa1.start, nfa2.accept)
 
-        for state in states:
-            for input_symbol in input_symbols:
-                transition = transitions[input_symbol][state]
-                to_group = groups_map[transition]
-                if state not in state_to_transitions.keys():
-                    state_to_transitions[state] = []
-                state_to_transitions[state].append(to_group)
+    @staticmethod
+    def union(nfa1, nfa2):
+        """Объединение двух НКА."""
+        start = State()
+        accept = State()
+        start.epsilon_transitions.update({nfa1.start, nfa2.start})
+        nfa1.accept.epsilon_transitions.add(accept)
+        nfa2.accept.epsilon_transitions.add(accept)
+        return NFA(start, accept)
 
-        new_groups_map = create_new_groups(state_to_transitions, groups_map)
+    @staticmethod
+    def kleene_star(nfa):
+        """Клини-звезда для НКА."""
+        start = State()
+        accept = State()
+        start.epsilon_transitions.update({nfa.start, accept})
+        nfa.accept.epsilon_transitions.update({nfa.start, accept})
+        return NFA(start, accept)
 
-        if len(set(groups_map.values())) != len(set(new_groups_map.values())):
-            is_changed = True
-            groups_map = new_groups_map
-        else:
-            transitions, outputs = build_minimized_moore(transitions, outputs, new_groups_map)
-
-    print_moore(output_filename, transitions, outputs, list(outputs.keys()), input_symbols)
-
-
-def remove_unreachable_states_moore(transitions, states, input_symbols):
-    reachable_states = set()
-    states_to_visit = {states[0]}
-
-    while states_to_visit:
-        current_state = states_to_visit.pop()
-        reachable_states.add(current_state)
-
-        for input_symbol in input_symbols:
-            if current_state in transitions[input_symbol]:
-                next_state = transitions[input_symbol][current_state]
-                if next_state not in reachable_states:
-                    states_to_visit.add(next_state)
-
-    for input_symbol in input_symbols:
-        for state in list(transitions[input_symbol].keys()):
-            if state not in reachable_states:
-                del transitions[input_symbol][state]
-
-    states = [state for state in states if state in reachable_states]
-    return transitions, states
+    @staticmethod
+    def plus(nfa):
+        """Операция "+" (один или более раз)."""
+        return NFA.concatenate(nfa, NFA.kleene_star(nfa))
 
 
-def build_minimized_moore(transitions, outputs, new_groups_map):
-    new_transitions = {}
-    new_outputs = {}
+def parse_regex_to_nfa(regex):
+    """
+    Разбирает регулярное выражение в НКА, используя алгоритм Томпсона.
+    Поддерживает +, *, |, () и неявную конкатенацию.
+    """
+    stack = []
+    operators = []
 
-    for z, state_map in transitions.items():
-        new_state_map = {}
-        for state, next_state in state_map.items():
-            new_state = new_groups_map[state]
-            new_next_state = new_groups_map[next_state]
+    def apply_operator():
+        operator = operators.pop()
+        if operator == '*':
+            nfa = stack.pop()
+            stack.append(NFA.kleene_star(nfa))
+        elif operator == '+':
+            nfa = stack.pop()
+            stack.append(NFA.plus(nfa))
+        elif operator == '|':
+            nfa2 = stack.pop()
+            nfa1 = stack.pop()
+            stack.append(NFA.union(nfa1, nfa2))
+        elif operator == '.':
+            nfa2 = stack.pop()
+            nfa1 = stack.pop()
+            stack.append(NFA.concatenate(nfa1, nfa2))
 
-            if new_state not in new_state_map:
-                new_state_map[new_state] = new_next_state
+    def precedence(op):
+        if op == '*':
+            return 3
+        if op == '+':
+            return 3
+        if op == '.':
+            return 2
+        if op == '|':
+            return 1
+        return 0
 
-        new_transitions[z] = new_state_map
+    explicit_concat = ""
+    for i in range(len(regex)):
+        explicit_concat += regex[i]
+        if i + 1 < len(regex):
+            if (regex[i].isalnum() or regex[i] == ')') and \
+                    (regex[i + 1].isalnum() or regex[i + 1] in '('):
+                explicit_concat += '.'
+            elif regex[i] in '*+' and (regex[i + 1].isalnum() or regex[i + 1] == '('):
+                explicit_concat += '.'
 
-    for state, output in outputs.items():
-        if state in new_groups_map.keys():
-            new_outputs[new_groups_map[state]] = output
+    for char in explicit_concat:
+        if char.isalnum():
+            stack.append(NFA.from_symbol(char))
+        elif char == '(':
+            operators.append(char)
+        elif char == ')':
+            while operators and operators[-1] != '(':
+                apply_operator()
+            operators.pop()
+        elif char in '*+|.':
+            while (operators and operators[-1] != '(' and
+                   precedence(operators[-1]) >= precedence(char)):
+                apply_operator()
+            operators.append(char)
 
-    return new_transitions, new_outputs
+    while operators:
+        apply_operator()
+
+    return stack.pop()
 
 
-def create_new_groups(state_to_transitions, groups_map):
-    transitions_to_group = {}
-    new_groups_map = {}
-    for state, ts in state_to_transitions.items():
-        group = groups_map[state]
+def traverse_states_with_transitions(state, visited, states_transitions):
+    if state in visited:
+        return
+    visited.add(state)
 
-        transitions_key = tuple(ts)
+    for symbol, next_states in state.transitions.items():
+        for next_state in next_states:
+            states_transitions.append((state.name, symbol, next_state.name))
+            traverse_states_with_transitions(next_state, visited, states_transitions)
 
-        unique_key = (transitions_key, group)
+    for epsilon_state in state.epsilon_transitions:
+        states_transitions.append((state.name, 'ε', epsilon_state.name))
+        traverse_states_with_transitions(epsilon_state, visited, states_transitions)
 
-        if unique_key in transitions_to_group:
-            existing_group = transitions_to_group[unique_key]
-            new_groups_map[state] = existing_group
-        else:
-            new_group_name = f'a{len(transitions_to_group) + 1}'
-            transitions_to_group[unique_key] = new_group_name
-            new_groups_map[state] = new_group_name
 
-    return new_groups_map
+def export_nfa_to_file(nfa, output_filename):
+    """Экспортирует НКА в файл в формате CSV в требуемом формате."""
+    states_transitions = []
+    visited = set()
+    traverse_states_with_transitions(nfa.start, visited, states_transitions)
 
-def print_moore(output_filename, transitions, outputs, states, input_symbols):
+    all_states = {nfa.start.name} | {t[0] for t in states_transitions} | {t[2] for t in states_transitions}
+    input_symbols = {t[1] for t in states_transitions}
+
     with open(output_filename, mode='w', newline='', encoding='utf-8') as file:
         writer = csv.writer(file, delimiter=';')
-        header1 = [''] + list(outputs.values())
+        header1 = [''] + ["F" if state == nfa.accept.name else "" for state in sorted(all_states)]
         writer.writerow(header1)
-        header2 = [''] + states
+        header2 = [''] + sorted(all_states)
         writer.writerow(header2)
 
-        for input_symbol in input_symbols:
-            row = [input_symbol]
-            for state in states:
-                next_states = transitions[input_symbol].get(state, [])
+        for symbol in sorted(input_symbols):
+            row = [symbol]
+            for state in sorted(all_states):
+                next_states = [t[2] for t in states_transitions if t[0] == state and t[1] == symbol]
                 row.append(','.join(next_states) if next_states else '')
             writer.writerow(row)
 
 
-def read_moore(moore_filename):
-    transitions = {}
-    input_symbols = []
-    outputs = {}
-
-    with open(moore_filename, mode='r', newline='', encoding='utf-8') as file:
-        reader = csv.reader(file, delimiter=';')
-        headers = next(reader)
-        output_symbols = headers[1:]
-        states_row = next(reader)
-        states = states_row[1:]
-
-        for state, output_symbol in zip(states, output_symbols):
-            outputs[state] = output_symbol
-
-        for row in reader:
-            input_symbol = row[0]
-            input_symbols.append(input_symbol)
-            transitions[input_symbol] = {}
-            for i, state in enumerate(states):
-                next_state = row[i + 1]
-                transitions[input_symbol][state] = next_state
-
-    return transitions, outputs, states, input_symbols
-
-def read_moore2(moore_filename):
-    transitions = {}
-    input_symbols = []
-    outputs = {}
-
-    with open(moore_filename, mode='r', newline='', encoding='utf-8') as file:
-        reader = csv.reader(file, delimiter=';')
-        headers = next(reader)
-        output_symbols = headers[1:]
-        states_row = next(reader)
-        states = states_row[1:]
-
-        for state, output_symbol in zip(states, output_symbols):
-            outputs[state] = output_symbol
-
-        for row in reader:
-            input_symbol = row[0]
-            input_symbols.append(input_symbol)
-            transitions[input_symbol] = {}
-            for i, state in enumerate(states):
-                next_state = row[i + 1]
-                # Разделяем состояния по запятой и создаем список
-                next_states_list = next_state.split(',') if next_state else []
-                transitions[input_symbol][state] = next_states_list
-
-    return transitions, outputs, states, input_symbols
-
-
-
-
-
-
-def compute_epsilon_closure(states, transitions):
-    epsilon_closure = {}
-
-    for state in states:
-        # Инициализируем замыкание текущим состоянием
-        closure = set([state])
-        stack = [state]
-
-        # Пока есть состояния для обработки
-        while stack:
-            current = stack.pop()
-            # Если есть переходы по 'ε', добавляем их в closure
-            if 'ε' in transitions and current in transitions['ε']:
-                for next_state in transitions['ε'][current]:
-                    if next_state not in closure:
-                        closure.add(next_state)
-                        stack.append(next_state)
-
-        # Сохраняем замыкание в виде строки
-        epsilon_closure[state] = ','.join(sorted(closure))
-
-    return epsilon_closure
-
-
-def has_final_state(states_str, outputs):
-    states = states_str.split(',')
-    for state in states:
-        if state in outputs and outputs[state] == 'F':
-            return True
-    return False
-
-
-def unique_sorted_states(states_set):
-    # Преобразуем множество строк в список
-    states_list = set()
-    for states in states_set:
-        # Разделяем каждую строку по запятой и добавляем в множество
-        states_list.update(states.split(','))
-
-    # Сортируем состояния по номеру
-    sorted_states = sorted(states_list, key=lambda x: (int(x[1:]), x))
-
-    # Объединяем отсортированные состояния в одну строку
-    result = ','.join(sorted_states)
-    return result
-
-
-def get_dfa_outputs(dfa_states, dfa_final_states):
-    outputs = {state: '' for state in dfa_states}
-    for state in dfa_states:
-        if state in dfa_final_states:
-            outputs[state] = "F"
-
-    return outputs
-
-
-def rename_states(states, transitions, outputs):
-    # Создаем словарь для сопоставления старых названий с новыми
-    state_mapping = {state: f's{i}' for i, state in enumerate(states)}
-
-    # Создаем новый список состояний
-    new_states = list(state_mapping.values())
-
-    # Заменяем названия состояний в outputs
-    new_outputs = {state_mapping[state]: value for state, value in outputs.items()}
-
-    # Заменяем названия состояний в transitions
-    new_transitions = {}
-    for symbol, state_dict in transitions.items():
-        new_transitions[symbol] = {}
-        for state, next_states in state_dict.items():
-            # Заменяем состояния в ключах и значениях
-            new_key = state_mapping.get(state, state)  # Получаем новое название или оставляем старое
-            new_next_states = [state_mapping.get(next_state, next_state) for next_state in next_states]
-            new_transitions[symbol][new_key] = new_next_states
-
-    return new_states, new_transitions, new_outputs
-
-
-def nfa_to_dfa(input_file, output_file):
-    transitions, outputs, states, input_symbols = read_moore2(input_file)
-    if 'ε' in input_symbols:
-        input_symbols.remove('ε')
-
-    epsilon_closure = compute_epsilon_closure(states, transitions)
-    print(epsilon_closure)
-
-    dfa_transitions = {symbol: {} for symbol in input_symbols}
-    dfa_states = []
-    dfa_start_state = epsilon_closure[states[0]]
-    dfa_final_states = set()
-
-    stack = [dfa_start_state]
-    visited = set()
-
-    while stack:
-        current_dfa_state = stack.pop()
-        if current_dfa_state in visited:
-            continue
-        visited.add(current_dfa_state)
-        dfa_states.append(current_dfa_state)
-
-        if has_final_state(current_dfa_state, outputs):
-            dfa_final_states.add(current_dfa_state)
-
-        # Обрабатываем переходы для всех символов кроме 'ε'
-        for symbol in input_symbols:
-            next_states = set()
-            for nfa_state in current_dfa_state.split(','):
-                if symbol in transitions and nfa_state in transitions[symbol]:
-                    next_states.update(transitions[symbol][nfa_state])
-
-            epsilon_closure_next_states = set()
-            for state in next_states:
-                epsilon_closure_next_states.add(epsilon_closure[state])
-            sorted_states = unique_sorted_states(epsilon_closure_next_states)
-            if sorted_states and sorted_states not in visited:
-                stack.append(sorted_states)
-
-            if current_dfa_state not in dfa_transitions[symbol]:
-                dfa_transitions[symbol][current_dfa_state] = []
-            dfa_transitions[symbol][current_dfa_state].append(sorted_states)
-
-    dfa_outputs = get_dfa_outputs(dfa_states, dfa_final_states)
-
-    dfa_states, dfa_transitions, dfa_outputs = rename_states(dfa_states, dfa_transitions, dfa_outputs)
-
-    print_moore(output_file, dfa_transitions, dfa_outputs, dfa_states, input_symbols)
-
-
-def main():
+if __name__ == "__main__":
     if len(sys.argv) != 3:
-        print("Использование:")
-        print("program <output.csv> <regular_expression>")
+        print("Использование: ./regexToNFA output.csv \"regex\"")
         sys.exit(1)
 
     output_file = sys.argv[1]
-    regular_expression = sys.argv[2]
+    regex = sys.argv[2]
 
-
-
-
-if __name__ == "__main__":
-    main()
+    nfa = parse_regex_to_nfa(regex)
+    export_nfa_to_file(nfa, output_file)
+    print(f"НКА для регулярного выражения '{regex}' экспортирован в '{output_file}'")
