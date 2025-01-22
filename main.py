@@ -1,7 +1,8 @@
-import csv
 import sys
+import csv
 
 number = 0
+
 class State:
     def __init__(self):
         global number
@@ -50,7 +51,6 @@ class NFA:
     def plus(nfa):
         return NFA.concatenate(nfa, NFA.kleene_star(nfa))
 
-
 def parse_regex_to_nfa(regex):
     stack = []
     operators = []
@@ -61,9 +61,6 @@ def parse_regex_to_nfa(regex):
             nfa = stack.pop()
             stack.append(NFA.kleene_star(nfa))
         elif operator == '+':
-            nfa = stack.pop()
-            stack.append(NFA.plus(nfa))
-        elif operator == '|':
             nfa2 = stack.pop()
             nfa1 = stack.pop()
             stack.append(NFA.union(nfa1, nfa2))
@@ -76,10 +73,8 @@ def parse_regex_to_nfa(regex):
         if op == '*':
             return 3
         if op == '+':
-            return 3
-        if op == '.':
             return 2
-        if op == '|':
+        if op == '.':
             return 1
         return 0
 
@@ -113,7 +108,6 @@ def parse_regex_to_nfa(regex):
 
     return stack.pop()
 
-
 def traverse_states_with_transitions(state, visited, states_transitions):
     if state in visited:
         return
@@ -127,7 +121,6 @@ def traverse_states_with_transitions(state, visited, states_transitions):
     for epsilon_state in state.epsilon_transitions:
         states_transitions.append((state.name, 'ε', epsilon_state.name))
         traverse_states_with_transitions(epsilon_state, visited, states_transitions)
-
 
 def export_nfa_to_file(nfa, output_filename):
     states_transitions = []
