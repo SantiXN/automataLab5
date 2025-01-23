@@ -52,12 +52,12 @@ class NFA:
         #
         # return NFA(nfa1.start, nfa1.accept)
 
-        for symbol, states in nfa2.start.transitions.items():
-            if symbol not in nfa1.start.transitions:
-                nfa1.start.transitions[symbol] = set()
-            nfa1.start.transitions[symbol].update(states)
-
-        nfa2.accept.epsilon_transitions.add(nfa1.accept)
+        # for symbol, states in nfa2.start.transitions.items():
+        #     if symbol not in nfa1.start.transitions:
+        #         nfa1.start.transitions[symbol] = set()
+        #     nfa1.start.transitions[symbol].update(states)
+        #
+        # nfa2.accept.epsilon_transitions.add(nfa1.accept)
 
 
         # for symbol, states in nfa2.accept.transitions.items():
@@ -66,7 +66,18 @@ class NFA:
         #     nfa1.accept.transitions[symbol].update(states)
 
             # Возвращаем автомат с начальным состоянием от nfa1 и конечным состоянием от nfa1
-        return NFA(nfa1.start, nfa1.accept)
+        # return NFA(nfa1.start, nfa1.accept)
+        new_start = State()
+        new_start.epsilon_transitions.add(nfa1.start)
+        new_start.epsilon_transitions.add(nfa2.start)
+
+        # Создаем новое конечное состояние
+        new_accept = State()
+        nfa1.accept.epsilon_transitions.add(new_accept)
+        nfa2.accept.epsilon_transitions.add(new_accept)
+
+        # Возвращаем новый NFA
+        return NFA(new_start, new_accept)
 
     @staticmethod
     def kleene_star(nfa):
