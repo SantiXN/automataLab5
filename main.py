@@ -33,16 +33,16 @@ class NFA:
 
     @staticmethod
     def concatenate(nfa1, nfa2):
-        # nfa1.accept.epsilon_transitions.add(nfa2.start)
-        #
-        #
-        # new_nfa = NFA(nfa1.start, nfa2.accept)
-        # return new_nfa
-        for symbol, states in nfa2.start.transitions.items():
-            if symbol not in nfa1.accept.transitions:
-                nfa1.accept.transitions[symbol] = set()
-            nfa1.accept.transitions[symbol].update(states)
-        return NFA(nfa1.start, nfa2.accept)
+        nfa1.accept.epsilon_transitions.add(nfa2.start)
+
+
+        new_nfa = NFA(nfa1.start, nfa2.accept)
+        return new_nfa
+        # for symbol, states in nfa2.start.transitions.items():
+        #     if symbol not in nfa1.accept.transitions:
+        #         nfa1.accept.transitions[symbol] = set()
+        #     nfa1.accept.transitions[symbol].update(states)
+        # return NFA(nfa1.start, nfa2.accept)
 
     @staticmethod
     def union(nfa1, nfa2):
