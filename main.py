@@ -44,20 +44,24 @@ class NFA:
 
     @staticmethod
     def union(nfa1, nfa2):
-        start = State()
-        accept = State()
-        start.epsilon_transitions.update({nfa1.start, nfa2.start})
-        nfa1.accept.epsilon_transitions.add(accept)
-        nfa2.accept.epsilon_transitions.add(accept)
+        # start = State()
+        # accept = State()
+        # start.epsilon_transitions.update({nfa1.start, nfa2.start})
+        # nfa1.accept.epsilon_transitions.add(accept)
+        # nfa2.accept.epsilon_transitions.add(accept)
 
-        nfa = NFA(start, accept)
-        nfa.states_transitions.extend(nfa1.states_transitions)
-        nfa.states_transitions.extend(nfa2.states_transitions)
-        nfa.states_transitions.append((start.name, 'ε', nfa1.start.name))
-        nfa.states_transitions.append((start.name, 'ε', nfa2.start.name))
-        nfa.states_transitions.append((nfa1.accept.name, 'ε', accept.name))
-        nfa.states_transitions.append((nfa2.accept.name, 'ε', accept.name))
-        return nfa
+        nfa1.start.transitions.update(nfa2.start.transitions)
+        nfa2.accept.epsilon_transitions.add(nfa1.accept)
+        return NFA(nfa1.start, nfa1.accept)
+
+        # nfa = NFA(start, accept)
+        # nfa.states_transitions.extend(nfa1.states_transitions)
+        # nfa.states_transitions.extend(nfa2.states_transitions)
+        # nfa.states_transitions.append((start.name, 'ε', nfa1.start.name))
+        # nfa.states_transitions.append((start.name, 'ε', nfa2.start.name))
+        # nfa.states_transitions.append((nfa1.accept.name, 'ε', accept.name))
+        # nfa.states_transitions.append((nfa2.accept.name, 'ε', accept.name))
+        # return nfa
 
     @staticmethod
     def kleene_star(nfa):
@@ -227,4 +231,4 @@ if __name__ == "__main__":
     # regex = "((((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(rw*e|(r|r)))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|r))((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|w))*((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(q(q(rw*e|(i|w))|ew*e)|(u(rw*e|(i|w))|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(tw*e|t)))|(((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(rw*e|(r|r)))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(q(q(rw*e|(i|w))|ew*e)|(u(rw*e|(i|w))|ir)))|((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(rw*e|(i|w)))))(((((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|((q(rw*e|(r|r))|(ew*e|q))|tw*e))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|((qr|q)|(r|e))))((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|w))*((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(q(q(rw*e|(i|w))|ew*e)|(u(rw*e|(i|w))|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(tw*e|t)))|((((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|((q(rw*e|(r|r))|(ew*e|q))|tw*e))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|(q(q(rw*e|(i|w))|ew*e)|(u(rw*e|(i|w))|ir)))|(((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(i|w))|ew*e)|i(rw*e|(i|w)))|((q(rw*e|(i|w))|ew*e)|(tw*e|r)))))*(((((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|((q(rw*e|(r|r))|(ew*e|q))|tw*e))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|((qr|q)|(r|e))))((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|w))*((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*iw|t)|((((q(r|w)|q)|r)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|((q(rw*e|(r|r))|(ew*e|q))|tw*e))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*iw|(w|y)))|((((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(rw*e|(r|r)))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|r))((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|(q(qr|q)|(ur|ir)))|(y(i(q(r|w)|q)|(i(r|w)|i))*(i(qr|q)|(ir|t))|w))*((y(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|tw*e)((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*iw|t)|((r|w)(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(rw*e|(r|r)))((q(q(r|w)|q)|(u(r|w)|i))(i(q(r|w)|q)|(i(r|w)|i))*(i(q(rw*e|(r|r))|(ew*e|q))|(i(rw*e|(r|r))|w))|(q(q(rw*e|(r|r))|(ew*e|q))|u(rw*e|(r|r))))*iw)"
 
     nfa = parse_regex_to_nfa(regex)
-    export_nfa_to_file(nfa, output_file)
+    export_nfa_to_file2(nfa, output_file)
